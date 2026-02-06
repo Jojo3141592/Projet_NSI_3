@@ -1,0 +1,216 @@
+# Vous trouverez ici le code de mon projet sur le jeu de pong
+
+from random import choice, randint
+import pygame, time
+from pygame import image
+pygame.init()
+largeur ,hauteur=800,600
+monEcran=pygame.display.set_mode((largeur ,hauteur ))
+
+jeu_en_cours=True
+fin_jeu = True
+jouer = False
+v = False
+b = False
+accueil = image.load('Fond_pygame_pong.png')
+accueil = accueil.convert()
+monEcran.blit(accueil,(0,0))
+pygame.display.flip()
+
+# Variables de score
+scoreG = 0
+scoreD = 0
+
+maPolice = pygame.font.SysFont('arial', 30)
+
+# Position de la balle
+posx = largeur//2
+posy = hauteur//2
+direction = choice([[1, -1], [1, 1], [-1, 1], [-1, -1]])
+rayon = 10
+vitesse = 0.8 # Vitesse de base
+
+# Raquette gauche
+wg = largeur//84
+hg = hauteur//4
+raqgx = largeur//40
+raqgy = hauteur//2-hg//2
+mouvHautg = False
+mouvBasg = False
+
+# Raquette droite
+wd = largeur//84
+hd = hauteur//4
+raqdx = largeur - largeur//28
+raqdy = hauteur//2-hg//2
+mouvHautd = False
+mouvBasd = False
+
+# Variables du bonus
+bonus_rayon = 40
+bonus_actif = False
+bonus_x = 0
+bonus_y = 0
+dernier_bonus = time.time()
+
+def apparition_bonus():
+    global bonus_actif, bonus_x, bonus_y, dernier_bonus
+    bonus_x = randint(largeur//4, 3*largeur//4)
+    bonus_y = randint(hauteur//4, 3*hauteur//4)
+    bonus_actif = True
+    dernier_bonus = time.time()
+
+def affichage():
+    texteGauche = maPolice.render(str(scoreG), 1, (102,75,64))
+    texteDroit = maPolice.render(str(scoreD), 1, (102,75,64))
+
+    monEcran.fill((151,176,146))
+    monEcran.blit(texteGauche, (largeur//20, 20))
+    monEcran.blit(texteDroit, (largeur - largeur//20, 20))
+
+    pygame.draw.rect(monEcran, (184, 209, 178), (raqgx, raqgy, wg, hg))
+    pygame.draw.rect(monEcran, (184, 209, 178), (raqdx, raqdy, wd, hd))
+
+    pygame.draw.circle(monEcran, (184, 209, 178), (int(posx), int(posy)), rayon)
+
+    if bonus_actif:
+        pygame.draw.circle(monEcran, (110,128,103), (bonus_x, bonus_y), bonus_rayon)
+
+    pygame.display.update()
+
+while jeu_en_cours:
+    if fin_jeu:
+        monEcran.blit(accueil, (0, 0))
+        if v:
+            pygame.draw.rect(monEcran, (184, 209, 178), (largeur//10, int(23*hauteur/27), largeur//5, hauteur//60))
+        elif b:
+            pygame.draw.rect(monEcran, (184, 209, 178), (largeur - 3*largeur//10, int(23*hauteur/27), largeur//5, hauteur//60))
+        pygame.display.flip()
+
+        scoreG = 0
+        scoreD = 0
+
+    if v or b:
+        if jouer:
+            fin_jeu = False
+            affichage()
+
+            # Apparition du bonus toutes les 7 secondes
+            if not bonus_actif and time.time() - dernier_bonus > 7:
+                apparition_bonus()
+
+            # Balle sort à droite
+            if posx - rayon >= largeur:
+                scoreG += 1
+                posx = largeur//2
+                posy = hauteur//2
+                direction = choice([[1, -1], [1, 1], [-1, 1], [-1, -1]])
+                vitesse = 0.8
+                bonus_actif = False
+                raqgx = largeur//40
+                raqgy = hauteur//2 - hg//2
+                raqdx = largeur - largeur//28
+                raqdy = hauteur//2 - hd//2
+                affichage()
+                jouer = False
+
+            elif posx + rayon <= 0:
+                scoreD += 1
+                posx = largeur//2
+                posy = hauteur//2
+                direction = choice([[1, -1], [1, 1], [-1, 1], [-1, -1]])
+                vitesse = 0.8
+                bonus_actif = False
+                raqgx = largeur//40
+                raqgy = hauteur//2 - hg//2
+                raqdx = largeur - largeur//28
+                raqdy = hauteur//2 - hd//2
+                affichage()
+                jouer = False
+
+            if scoreG == 3 or scoreD == 3:
+                fin_jeu = True
+                jouer = False
+                v = False
+                b = False
+                victoire = "Victoire du joueur Gauche!!" if scoreG == 3 else "Victoire du joueur Droit!!"
+                texteVictoire = maPolice.render(victoire, 1, (102,75,64))
+                boite = texteVictoire.get_rect(center=(largeur//2, hauteur//3))
+                monEcran.blit(texteVictoire, boite)
+                pygame.display.update()
+                time.sleep(3)
+
+            # Mouvements des raquettes
+            if mouvHautg and raqgy > 0:
+                raqgy -= 1
+            if mouvBasg and raqgy < hauteur - hg:
+                raqgy += 1
+            if v:
+                if mouvHautd and raqdy > 0:
+                    raqdy -= 1
+                if mouvBasd and raqdy < hauteur - hd:
+                    raqdy += 1
+            elif b:
+                if posy < raqdy + hg/2 and raqdy > 0:
+                    raqdy -= 1
+                elif posy > raqdy + hg/2 and raqdy < hauteur - hg:
+                    raqdy += 1
+
+            # Rebond sur bords
+            if posy <= rayon or posy >= hauteur - rayon:
+                direction[1] *= -1
+
+            # Déplacement balle avec vitesse
+            posx += direction[0] * vitesse
+            posy += direction[1] * vitesse
+            time.sleep(0.002)
+
+            # Collision avec raquettes
+            if raqgx < posx - rayon < raqgx + wg and raqgy < posy < raqgy + hg:
+                direction[0] *= -1
+                direction[1] = (posy - (raqgy + hg/2))*(3.5/hg)
+
+            if raqdx < posx + rayon < raqdx + wd and raqdy < posy < raqdy + hd:
+                direction[0] *= -1
+                direction[1] = (posy - (raqdy + hd/2))*(3.5/hd)
+
+            # Collision avec le bonus
+            if bonus_actif and (posx - bonus_x)**2 + (posy - bonus_y)**2 <= (rayon + bonus_rayon)**2:
+                vitesse += 0.1  # Augmentation de la vitesse
+                bonus_actif = False  # Disparition du bonus
+
+    for evenement in pygame.event.get():
+        if evenement.type == pygame.KEYDOWN:
+            if evenement.key == pygame.K_a:
+                mouvHautg = True
+            if evenement.key == pygame.K_q:
+                mouvBasg = True
+            if evenement.key == pygame.K_UP:
+                mouvHautd = True
+            if evenement.key == pygame.K_DOWN:
+                mouvBasd = True
+            if evenement.key == pygame.K_SPACE:
+                jouer = True
+            if evenement.key == pygame.K_v:
+                v = True
+                b = False
+                jouer = False
+            if evenement.key == pygame.K_b:
+                b = True
+                v = False
+                jouer = False
+
+        elif evenement.type == pygame.KEYUP:
+            if evenement.key == pygame.K_a:
+                mouvHautg = False
+            if evenement.key == pygame.K_q:
+                mouvBasg = False
+            if evenement.key == pygame.K_UP:
+                mouvHautd = False
+            if evenement.key == pygame.K_DOWN:
+                mouvBasd = False
+
+        if evenement.type == pygame.QUIT:
+            jeu_en_cours = False
+
+pygame.quit()
